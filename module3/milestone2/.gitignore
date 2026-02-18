@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets / keys
+gcp-sa-key.json
+*.json
+
+# OS/editor
+.vscode/
+.DS_Store

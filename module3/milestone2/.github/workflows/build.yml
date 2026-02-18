@@ -1,0 +1,64 @@
+name: build-test-push
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: module3/milestone2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps (runtime + dev)
+        run: |
+          pip install -r app/requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q
+
+  build_and_push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: module3/milestone2
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate to Google Cloud using a Service Account JSON key stored in GitHub Secrets
+      - name: Auth to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build image
+        run: |
+          IMAGE="us-central1-docker.pkg.dev/fastapi-ml-486405/${{ secrets.AR_REPO }}/ml-service"
+          TAG="${{ github.ref_name }}"
+          docker build -t "$IMAGE:$TAG" .
+
+      - name: Push image
+        run: |
+          IMAGE="us-central1-docker.pkg.dev/fastapi-ml-486405/${{ secrets.AR_REPO }}/ml-service"
+          TAG="${{ github.ref_name }}"
+          docker push "$IMAGE:$TAG"
